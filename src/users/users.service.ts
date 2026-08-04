@@ -86,6 +86,24 @@ export class UsersService {
     }
   }
 
+  findByEmailWithPassword(email: string): Promise<UserDocument | null> {
+    return this.userModel.findOne({ email }).select('+password').exec();
+  }
+
+  findByIdWithRefreshToken(id: string): Promise<UserDocument | null> {
+    if (!isValidObjectId(id)) {
+      return Promise.resolve(null);
+    }
+    return this.userModel.findById(id).select('+hashedRefreshToken').exec();
+  }
+
+  async setRefreshTokenHash(
+    id: string,
+    hashedRefreshToken: string | null,
+  ): Promise<void> {
+    await this.userModel.updateOne({ _id: id }, { hashedRefreshToken }).exec();
+  }
+
   private assertValidId(id: string): void {
     if (!isValidObjectId(id)) {
       throw new BadRequestException(`Invalid user id: ${id}`);
