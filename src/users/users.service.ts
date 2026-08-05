@@ -5,17 +5,18 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import * as bcrypt from 'bcryptjs';
 import { isValidObjectId, Model } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { HashingService } from './hashing/hashing.service';
 import { User, UserDocument } from './schemas/user.schema';
-
-const SALT_ROUNDS = 10;
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    private readonly hashingService: HashingService,
+  ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserDocument> {
     const existing = await this.userModel
@@ -25,9 +26,8 @@ export class UsersService {
       throw new ConflictException('Email is already in use');
     }
 
-    const hashedPassword = await bcrypt.hash(
+    const hashedPassword = await this.hashingService.hash(
       createUserDto.password,
-      SALT_ROUNDS,
     );
     const created = new this.userModel({
       ...createUserDto,
@@ -66,7 +66,7 @@ export class UsersService {
 
     const update: Partial<User> = { ...updateUserDto };
     if (updateUserDto.password) {
-      update.password = await bcrypt.hash(updateUserDto.password, SALT_ROUNDS);
+      update.password = await this.hashingService.hash(updateUserDto.password);
     }
 
     const updated = await this.userModel
